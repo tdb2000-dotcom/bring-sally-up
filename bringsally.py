@@ -43,26 +43,35 @@ st.divider()
 with st.form("sally_form", clear_on_submit=True):
     st.subheader("Neuer Eintrag")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     name = col1.selectbox("👤 Name", ["Till", "Jonas", "Jaro", "Eileen"])
     datum = col2.date_input("📅 Datum", datetime.now())
-    minuten = col3.number_input("⏱️ Minuten", min_value=0, step=1)
-    sekunden = col4.number_input("⏱️ Sekunden", min_value=0, max_value=59, step=1)
+    zeit_input = col3.text_input("⏱️ Zeit (M:SS)", placeholder="z.B. 3:45")
 
     submit = st.form_submit_button("💾 Eintrag speichern", use_container_width=True)
 
 # --- SPEICHERN ---
 if submit:
-    sheet = connect_to_sheet()
-    if sheet:
-        try:
-            gesamt_sekunden = int(minuten) * 60 + int(sekunden)
-            with st.spinner("Speichere..."):
-                sheet.append_row([name, str(datum), gesamt_sekunden])
-            st.success(f"✅ Gut gemacht {name}! Zeit: {int(minuten)}:{int(sekunden):02d} gespeichert.")
-            st.balloons()
-        except Exception as e:
-            st.error(f"Speicherfehler: {e}")
+    gesamt_sekunden = None
+    try:
+        teile = zeit_input.strip().split(":")
+        if len(teile) == 2:
+            gesamt_sekunden = int(teile[0]) * 60 + int(teile[1])
+        else:
+            st.error("⚠️ Bitte Zeit im Format M:SS eingeben, z.B. 3:45")
+    except:
+        st.error("⚠️ Ungültiges Format. Bitte M:SS eingeben, z.B. 3:45")
+
+    if gesamt_sekunden is not None:
+        sheet = connect_to_sheet()
+        if sheet:
+            try:
+                with st.spinner("Speichere..."):
+                    sheet.append_row([name, str(datum), gesamt_sekunden])
+                st.success(f"✅ Gut gemacht {name}! Zeit: {zeit_input} gespeichert.")
+                st.balloons()
+            except Exception as e:
+                st.error(f"Speicherfehler: {e}")
 
 st.divider()
 
@@ -78,6 +87,8 @@ if sheet:
             df.columns = ["Name", "Datum", "Sekunden"]
             df["Datum"] = pd.to_datetime(df["Datum"])
             df["Sekunden"] = pd.to_numeric(df["Sekunden"], errors="coerce")
+            df = df.dropna(subset=["Sekunden"])
+            df["Sekunden"] = df["Sekunden"].astype(int)
 
             # --- STATISTIKEN ---
             st.subheader("📊 Statistiken")
@@ -99,7 +110,6 @@ if sheet:
             # --- LINIEN GRAPH ---
             st.subheader("📈 Fortschritt über die Zeit")
 
-            # Für den Graph: MM:SS als Hover-Label
             df["Zeit"] = df["Sekunden"].apply(sekunden_zu_mmss)
 
             fig = px.line(
@@ -114,7 +124,6 @@ if sheet:
                 color_discrete_sequence=px.colors.qualitative.Set2
             )
 
-            # Y-Achse als MM:SS anzeigen
             max_sek = int(df["Sekunden"].max())
             tick_vals = list(range(0, max_sek + 60, 30))
             tick_text = [sekunden_zu_mmss(v) for v in tick_vals]
