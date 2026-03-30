@@ -34,7 +34,7 @@ def sekunden_zu_mmss(sek):
 
 # --- SEITEN-KONFIGURATION ---
 st.set_page_config(page_title="Bring Sally Up", page_icon="💪", layout="wide")
-st.title("💪 Bring Sally Up – WG Tracker")
+st.title("💪 Bring Sally Up – WG Rosenbergentensetten")
 st.caption("Wer hält am längsten durch?")
 
 st.divider()
