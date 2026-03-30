@@ -81,7 +81,8 @@ if submit:
                     sheet.append_row([name, str(datum), gesamt_sekunden])
 
                 if ist_bestzeit:
-                    st.markdown(f"""
+                    banner = st.empty()
+                    banner.markdown(f"""
                     <style>
                     @keyframes pushup {{
                         0%   {{ transform: translateY(0px); }}
@@ -115,12 +116,39 @@ if submit:
                         <div style="font-size: 1.5rem; color: white; margin-top: 0.5rem; font-weight: 600;">
                             {name} &nbsp;–&nbsp; {zeit_input} ⏱️
                         </div>
-                        <div class="pushup-emoji" style="margin-top: 1rem;">🤸</div>
+                        <div class="pushup-emoji" style="margin-top: 1rem;">🤻</div>
                     </div>
                     """, unsafe_allow_html=True)
                     st.balloons()
+                    import time
+                    time.sleep(3)
+                    banner.empty()
                 else:
-                    st.success(f"✅ Gut gemacht {name}! Zeit: {zeit_input} gespeichert.")
+                    msg = st.empty()
+                    msg.markdown(f"""
+                    <div style="
+                        background: linear-gradient(135deg, #2c2c2c, #444);
+                        border-radius: 16px;
+                        padding: 1.5rem 2rem;
+                        text-align: center;
+                        margin: 1rem 0;
+                        border: 1px solid #555;
+                    ">
+                        <div style="font-size: 2rem;">😤</div>
+                        <div style="font-size: 1.4rem; font-weight: 700; color: #ccc;">
+                            Heute leider keine Bestzeit.
+                        </div>
+                        <div style="font-size: 1.1rem; color: #aaa; margin-top: 0.3rem;">
+                            Keep on pushing, {name}! 💪
+                        </div>
+                        <div style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
+                            Gespeichert: {zeit_input}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    import time
+                    time.sleep(3)
+                    msg.empty()
 
             except Exception as e:
                 st.error(f"Speicherfehler: {e}")
