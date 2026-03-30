@@ -85,7 +85,7 @@ if sheet:
         if data:
             df = pd.DataFrame(data)
             df.columns = ["Name", "Datum", "Sekunden"]
-            df["Datum"] = pd.to_datetime(df["Datum"])
+            df["Datum"] = pd.to_datetime(df["Datum"], format="mixed", dayfirst=True)
             df["Sekunden"] = pd.to_numeric(df["Sekunden"], errors="coerce")
             df = df.dropna(subset=["Sekunden"])
             df["Sekunden"] = df["Sekunden"].astype(int)
