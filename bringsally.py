@@ -66,10 +66,62 @@ if submit:
         sheet = connect_to_sheet()
         if sheet:
             try:
+                # Prüfen ob Bestzeit
+                alle_daten = sheet.get_all_records()
+                ist_bestzeit = True
+                if alle_daten:
+                    df_check = pd.DataFrame(alle_daten)
+                    df_check.columns = ["Name", "Datum", "Sekunden"]
+                    df_check["Sekunden"] = pd.to_numeric(df_check["Sekunden"], errors="coerce")
+                    person_werte = df_check[df_check["Name"] == name]["Sekunden"].dropna()
+                    if not person_werte.empty:
+                        ist_bestzeit = gesamt_sekunden > int(person_werte.max())
+
                 with st.spinner("Speichere..."):
                     sheet.append_row([name, str(datum), gesamt_sekunden])
-                st.success(f"✅ Gut gemacht {name}! Zeit: {zeit_input} gespeichert.")
-                st.balloons()
+
+                if ist_bestzeit:
+                    st.markdown(f"""
+                    <style>
+                    @keyframes pushup {{
+                        0%   {{ transform: translateY(0px); }}
+                        50%  {{ transform: translateY(-12px); }}
+                        100% {{ transform: translateY(0px); }}
+                    }}
+                    @keyframes glow {{
+                        0%   {{ box-shadow: 0 0 20px rgba(255,215,0,0.6); }}
+                        50%  {{ box-shadow: 0 0 50px rgba(255,165,0,1); }}
+                        100% {{ box-shadow: 0 0 20px rgba(255,215,0,0.6); }}
+                    }}
+                    .bestzeit-banner {{
+                        background: linear-gradient(135deg, #FFD700, #FF8C00);
+                        border-radius: 20px;
+                        padding: 2.5rem;
+                        text-align: center;
+                        animation: glow 1.5s ease-in-out infinite;
+                        margin: 1rem 0;
+                    }}
+                    .pushup-emoji {{
+                        font-size: 4rem;
+                        display: inline-block;
+                        animation: pushup 0.6s ease-in-out infinite;
+                    }}
+                    </style>
+                    <div class="bestzeit-banner">
+                        <div style="font-size: 1rem; letter-spacing: 4px; color: white; font-weight: 700; opacity: 0.9;">🎉 NEUE</div>
+                        <div style="font-size: 3rem; font-weight: 900; color: white; text-shadow: 3px 3px 6px rgba(0,0,0,0.2); line-height: 1.1;">
+                            BESTZEIT!
+                        </div>
+                        <div style="font-size: 1.5rem; color: white; margin-top: 0.5rem; font-weight: 600;">
+                            {name} &nbsp;–&nbsp; {zeit_input} ⏱️
+                        </div>
+                        <div class="pushup-emoji" style="margin-top: 1rem;">🤸</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.balloons()
+                else:
+                    st.success(f"✅ Gut gemacht {name}! Zeit: {zeit_input} gespeichert.")
+
             except Exception as e:
                 st.error(f"Speicherfehler: {e}")
 
