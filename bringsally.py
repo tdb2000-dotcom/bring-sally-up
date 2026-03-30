@@ -34,7 +34,7 @@ def sekunden_zu_mmss(sek):
 
 # --- SEITEN-KONFIGURATION ---
 st.set_page_config(page_title="Bring Sally Up", page_icon="💪", layout="wide")
-st.title("💪 Bring Sally Up – WG Rosenbergentensetten")
+st.title("💪 Bring Sally Up – WG Tracker")
 st.caption("Wer hält am längsten durch?")
 
 st.divider()
@@ -177,13 +177,37 @@ if sheet:
             cols = st.columns(len(namen))
 
             for i, n in enumerate(namen):
-                person_df = df[df["Name"] == n]
+                person_df = df[df["Name"] == n].sort_values("Datum")
                 avg = person_df["Sekunden"].mean()
                 best = person_df["Sekunden"].max()
                 eintraege = len(person_df)
+
+                # Anzahl Tage mit 4:00 Min erreicht
+                tage_ziel = int((person_df["Sekunden"] >= 240).sum())
+
+                # Längster Streak mit >= 4:00 Min
+                streak = 0
+                max_streak = 0
+                for sek in person_df["Sekunden"]:
+                    if sek >= 240:
+                        streak += 1
+                        max_streak = max(max_streak, streak)
+                    else:
+                        streak = 0
+
+                # Aktueller Streak
+                akt_streak = 0
+                for sek in reversed(person_df["Sekunden"].tolist()):
+                    if sek >= 240:
+                        akt_streak += 1
+                    else:
+                        break
+
                 with cols[i]:
                     st.metric(f"⌀ {n}", sekunden_zu_mmss(avg))
                     st.caption(f"🏆 Bestzeit: {sekunden_zu_mmss(best)} | {eintraege} Versuche")
+                    st.caption(f"🎯 4:00 erreicht: {tage_ziel}x")
+                    st.caption(f"🔥 Längster Streak: {max_streak} Tage | Aktuell: {akt_streak} Tage")
 
             st.divider()
 
@@ -226,7 +250,83 @@ if sheet:
             )
 
             fig.update_traces(line=dict(width=3), marker=dict(size=8))
+
+            # --- LINEARE REGRESSION ---
+            from sklearn.linear_model import LinearRegression
+            import numpy as np
+
+            ZIEL_SEKUNDEN = 240  # 4:00 Minuten
+            farben = px.colors.qualitative.Set2
+            prognosen = []
+
+            for i, n in enumerate(namen):
+                person_df = df[df["Name"] == n].sort_values("Datum")
+                if len(person_df) >= 2:
+                    erster_tag = person_df["Datum"].min()
+                    X = (person_df["Datum"] - erster_tag).dt.days.values.reshape(-1, 1)
+                    y = person_df["Sekunden"].values
+
+                    model = LinearRegression()
+                    model.fit(X, y)
+
+                    if model.coef_[0] > 0:
+                        # Schätze wann 240 Sek erreicht
+                        tage_bis_ziel = int((ZIEL_SEKUNDEN - model.intercept_) / model.coef_[0])
+                        ziel_datum = erster_tag + pd.Timedelta(days=tage_bis_ziel)
+
+                        # Trendlinie zeichnen
+                        x_range = np.linspace(0, max(tage_bis_ziel, int(X.max())), 100)
+                        y_range = model.predict(x_range.reshape(-1, 1))
+                        datum_range = [erster_tag + pd.Timedelta(days=int(d)) for d in x_range]
+
+                        farbe = farben[i % len(farben)]
+                        fig.add_scatter(
+                            x=datum_range,
+                            y=y_range,
+                            mode="lines",
+                            name=f"{n} (Trend)",
+                            line=dict(dash="dash", width=2, color=farbe),
+                            opacity=0.5,
+                            showlegend=True
+                        )
+                        prognosen.append((n, ziel_datum, farbe))
+
+            # Ziellinie bei 4:00
+            fig.add_hline(
+                y=ZIEL_SEKUNDEN,
+                line_dash="dot",
+                line_color="red",
+                line_width=2,
+                annotation_text="🎯 Ziel: 4:00",
+                annotation_position="top right"
+            )
+
+            # Y-Achse anpassen inkl. Ziel
+            max_sek = max(int(df["Sekunden"].max()), ZIEL_SEKUNDEN)
+            tick_vals = list(range(0, max_sek + 60, 30))
+            tick_text = [sekunden_zu_mmss(v) for v in tick_vals]
+            fig.update_layout(
+                yaxis=dict(
+                    tickvals=tick_vals,
+                    ticktext=tick_text,
+                    title="Dauer (MM:SS)",
+                    range=[0, max_sek + 30]
+                )
+            )
+
             st.plotly_chart(fig, use_container_width=True)
+
+            # --- PROGNOSE KARTEN ---
+            if prognosen:
+                st.subheader("🎯 Prognose: Wann wird 4:00 Min erreicht?")
+                prog_cols = st.columns(len(prognosen))
+                for i, (n, ziel_datum, _) in enumerate(prognosen):
+                    tage_noch = (ziel_datum - pd.Timestamp.now()).days
+                    with prog_cols[i]:
+                        if tage_noch > 0:
+                            st.metric(f"📅 {n}", ziel_datum.strftime("%d.%m.%Y"), f"noch {tage_noch} Tage")
+                        else:
+                            st.metric(f"📅 {n}", "Ziel erreicht! 🏆")
 
             st.divider()
 
