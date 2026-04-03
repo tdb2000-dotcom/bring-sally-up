@@ -34,7 +34,7 @@ def sekunden_zu_mmss(sek):
 
 # --- SEITEN-KONFIGURATION ---
 st.set_page_config(page_title="Bring Sally Up", page_icon="💪", layout="wide")
-st.title("💪 Bring Sally Up – WG Rosenbergsettenkettenretten")
+st.title("💪 Bring Sally Up – WG Tracker")
 st.caption("Wer hält am längsten durch?")
 
 st.divider()
@@ -78,7 +78,7 @@ if submit:
                         ist_bestzeit = gesamt_sekunden > int(person_werte.max())
 
                 with st.spinner("Speichere..."):
-                    sheet.append_row([name, str(datum), gesamt_sekunden])
+                    sheet.append_row([name, datum.strftime("%d.%m.%Y"), gesamt_sekunden])
 
                 if ist_bestzeit:
                     banner = st.empty()
@@ -262,20 +262,27 @@ if sheet:
             for i, n in enumerate(namen):
                 person_df = df[df["Name"] == n].sort_values("Datum")
                 if len(person_df) >= 2:
-                    erster_tag = person_df["Datum"].min()
-                    X = (person_df["Datum"] - erster_tag).dt.days.values.reshape(-1, 1)
-                    y = person_df["Sekunden"].values
+                    # Nur die letzten 10 Einträge für Regression (aktueller Trend)
+                    regression_df = person_df.tail(10)
+                    erster_tag = regression_df["Datum"].min()
+                    X = (regression_df["Datum"] - erster_tag).dt.days.values.reshape(-1, 1)
+                    y = regression_df["Sekunden"].values
 
                     model = LinearRegression()
                     model.fit(X, y)
 
                     if model.coef_[0] > 0:
-                        # Schätze wann 240 Sek erreicht
-                        tage_bis_ziel = int((ZIEL_SEKUNDEN - model.intercept_) / model.coef_[0])
-                        ziel_datum = erster_tag + pd.Timedelta(days=tage_bis_ziel)
+                        # Aktuellen modellierten Wert berechnen
+                        aktueller_wert = float(model.predict([[int(X.max())]])[0])
+                        # Tage bis Ziel ab aktuellem Stand
+                        tage_noch = int((ZIEL_SEKUNDEN - aktueller_wert) / model.coef_[0])
+                        letzter_datenpunkt = regression_df["Datum"].max()
+                        ziel_datum = letzter_datenpunkt + pd.Timedelta(days=max(0, tage_noch))
 
-                        # Trendlinie zeichnen
-                        x_range = np.linspace(0, max(tage_bis_ziel, int(X.max())), 100)
+                        # Trendlinie nur ab letztem echten Datenpunkt vorwärts
+                        x_start = int(X.max())
+                        x_end = x_start + max(0, tage_noch)
+                        x_range = np.linspace(x_start, x_end, 100)
                         y_range = model.predict(x_range.reshape(-1, 1))
                         datum_range = [erster_tag + pd.Timedelta(days=int(d)) for d in x_range]
 
