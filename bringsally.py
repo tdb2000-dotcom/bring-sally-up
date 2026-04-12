@@ -44,7 +44,7 @@ with st.form("sally_form", clear_on_submit=True):
     st.subheader("Neuer Eintrag")
 
     col1, col2, col3 = st.columns(3)
-    name = col1.selectbox("👤 Name", ["Till", "Jonas", "Jaro", "Eileen"])
+    name = col1.selectbox("👤 Name", ["Till", "Jonas", "Jaro", "Eileen", "Mirjam", "Aline"])
     datum = col2.date_input("📅 Datum", datetime.now())
     zeit_input = col3.text_input("⏱️ Zeit (M:SS)", placeholder="z.B. 3:45")
 
